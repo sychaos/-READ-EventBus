@@ -53,20 +53,25 @@ class SubscriberMethodFinder {
     }
 
     List<SubscriberMethod> findSubscriberMethods(Class<?> subscriberClass) {
+        //  先看缓存里有没有当前的subscriberClass 有则直接返回
         List<SubscriberMethod> subscriberMethods = METHOD_CACHE.get(subscriberClass);
         if (subscriberMethods != null) {
             return subscriberMethods;
         }
 
         if (ignoreGeneratedIndex) {
+            // 用反射获取方法
             subscriberMethods = findUsingReflection(subscriberClass);
         } else {
+            // 不知道是啥 TODO
             subscriberMethods = findUsingInfo(subscriberClass);
         }
+        //  找不到就GG
         if (subscriberMethods.isEmpty()) {
             throw new EventBusException("Subscriber " + subscriberClass
                     + " and its super classes have no public methods with the @Subscribe annotation");
         } else {
+            // 缓存中添加
             METHOD_CACHE.put(subscriberClass, subscriberMethods);
             return subscriberMethods;
         }
