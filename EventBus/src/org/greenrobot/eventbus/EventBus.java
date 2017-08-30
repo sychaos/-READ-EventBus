@@ -50,7 +50,9 @@ public class EventBus {
     private static final EventBusBuilder DEFAULT_BUILDER = new EventBusBuilder();
     private static final Map<Class<?>, List<Class<?>>> eventTypesCache = new HashMap<>();
 
+    //通过当前的类名 取得该类的所有订阅类 key为订阅者类名 value为该类订阅事件
     private final Map<Class<?>, CopyOnWriteArrayList<Subscription>> subscriptionsByEventType;
+    //key为订阅者类名 value为eventType eventType是啥 TODO
     private final Map<Object, List<Class<?>>> typesBySubscriber;
     private final Map<Class<?>, Object> stickyEvents;
 
@@ -142,6 +144,7 @@ public class EventBus {
      * The {@link Subscribe} annotation also allows configuration like {@link
      * ThreadMode} and priority.
      */
+    //  EventBus.getDefault().register(this);
     public void register(Object subscriber) {
         //  先获取了订阅者类的class
         Class<?> subscriberClass = subscriber.getClass();
@@ -157,11 +160,11 @@ public class EventBus {
 
     // Must be called in synchronized block
     private void subscribe(Object subscriber, SubscriberMethod subscriberMethod) {
-        // eventType其实是 订阅的class
+        // eventType其实是 订阅事件
         Class<?> eventType = subscriberMethod.eventType;
         Subscription newSubscription = new Subscription(subscriber, subscriberMethod);
-        //subscriptionsByEventType是以event(即事件类)为key，以订阅列表(Subscription)为value，
-        //事件发送之后，在这里寻找订阅者,而Subscription又是一个CopyOnWriteArrayList，这是一个线程安全的容器
+        //通过当前的类名 取得该类的所有订阅类
+        //subscriptions 是指一个类中订阅的class
         CopyOnWriteArrayList<Subscription> subscriptions = subscriptionsByEventType.get(eventType);
         //为空的话就new一个然后add
         if (subscriptions == null) {
@@ -180,6 +183,7 @@ public class EventBus {
             //  遍历整个subscriptions 当前subscriberMethod优先级最大或者遍历结束 进行add
             //  i为优先级，i绝对不会重复
             if (i == size || subscriberMethod.priority > subscriptions.get(i).subscriberMethod.priority) {
+                // 添加当前订阅
                 subscriptions.add(i, newSubscription);
                 break;
             }
@@ -193,7 +197,7 @@ public class EventBus {
         }
         subscribedEvents.add(eventType);
 
-        //  sticky 应该是置顶操作 TODO
+        //  sticky 置顶 当订阅类型为sticky时 直接进行post操作
         if (subscriberMethod.sticky) {
             if (eventInheritance) {
                 // Existing sticky events of all subclasses of eventType have to be considered.
@@ -231,8 +235,7 @@ public class EventBus {
      * Only updates subscriptionsByEventType, not typesBySubscriber! Caller must update typesBySubscriber.
      */
     private void unsubscribeByEventType(Object subscriber, Class<?> eventType) {
-        //  subscriptionsByEventType是以event(即事件类)为key，以订阅列表(Subscription)为value，
-        //  事件发送之后，在这里寻找订阅者,而Subscription又是一个CopyOnWriteArrayList，这是一个线程安全的容器
+        //通过当前的类名 取得该类的所有订阅类
         List<Subscription> subscriptions = subscriptionsByEventType.get(eventType);
         if (subscriptions != null) {
             int size = subscriptions.size();
@@ -293,7 +296,7 @@ public class EventBus {
                     postSingleEvent(eventQueue.remove(0), postingState);
                 }
             } finally {
-                //  双关
+                //  开封
                 postingState.isPosting = false;
                 postingState.isMainThread = false;
             }
@@ -434,8 +437,7 @@ public class EventBus {
     private boolean postSingleEventForEventType(Object event, PostingThreadState postingState, Class<?> eventClass) {
         CopyOnWriteArrayList<Subscription> subscriptions;
         synchronized (this) {
-            //  subscriptionsByEventType是以event(即事件类)为key，以订阅列表(Subscription)为value，
-            //  事件发送之后，在这里寻找订阅者,而Subscription又是一个CopyOnWriteArrayList，这是一个线程安全的容器
+            // 通过当前的类名 取得该类的所有订阅类
             subscriptions = subscriptionsByEventType.get(eventClass);
         }
         //  疯狂发送事件并返回成功
@@ -464,9 +466,11 @@ public class EventBus {
     private void postToSubscription(Subscription subscription, Object event, boolean isMainThread) {
         switch (subscription.subscriberMethod.threadMode) {
             case POSTING:
+                // 直接调用方法
                 invokeSubscriber(subscription, event);
                 break;
             case MAIN:
+                // 在主线程直接调用，不在则添加到线程池
                 if (isMainThread) {
                     invokeSubscriber(subscription, event);
                 } else {
@@ -474,6 +478,7 @@ public class EventBus {
                 }
                 break;
             case BACKGROUND:
+                // 在主线程直接调用，不在则添加到线程池
                 if (isMainThread) {
                     backgroundPoster.enqueue(subscription, event);
                 } else {
@@ -481,6 +486,7 @@ public class EventBus {
                 }
                 break;
             case ASYNC:
+                // 异步调用 添加到线程池
                 asyncPoster.enqueue(subscription, event);
                 break;
             default:

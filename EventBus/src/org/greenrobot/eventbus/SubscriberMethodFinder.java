@@ -60,7 +60,7 @@ class SubscriberMethodFinder {
         }
 
         if (ignoreGeneratedIndex) {
-            // 用反射获取方法
+            // 用反射获取所有订阅者
             subscriberMethods = findUsingReflection(subscriberClass);
         } else {
             // 不知道是啥 TODO
