@@ -30,6 +30,7 @@ final class Subscription {
         active = true;
     }
 
+    //  subscriber == otherSubscription.subscriber
     @Override
     public boolean equals(Object other) {
         if (other instanceof Subscription) {

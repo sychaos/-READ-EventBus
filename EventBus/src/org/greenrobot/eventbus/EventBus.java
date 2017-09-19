@@ -52,7 +52,7 @@ public class EventBus {
 
     //通过当前的类名 取得该类的所有订阅类 key为订阅者类名 value为该类订阅事件
     private final Map<Class<?>, CopyOnWriteArrayList<Subscription>> subscriptionsByEventType;
-    //key为订阅者类名 value为eventType eventType是啥 TODO
+    //key为订阅者类 value为eventType eventType是被订阅者类
     private final Map<Object, List<Class<?>>> typesBySubscriber;
     private final Map<Class<?>, Object> stickyEvents;
 
@@ -160,7 +160,7 @@ public class EventBus {
 
     // Must be called in synchronized block
     private void subscribe(Object subscriber, SubscriberMethod subscriberMethod) {
-        // eventType其实是 订阅事件
+        // eventType其实是 订阅事件的类 eventType
         Class<?> eventType = subscriberMethod.eventType;
         Subscription newSubscription = new Subscription(subscriber, subscriberMethod);
         //通过当前的类名 取得该类的所有订阅类
@@ -171,8 +171,9 @@ public class EventBus {
             subscriptions = new CopyOnWriteArrayList<>();
             subscriptionsByEventType.put(eventType, subscriptions);
         } else {
+            //  Subscription的equals方法
             if (subscriptions.contains(newSubscription)) {
-                //  如果本已存在 throw EventBusException 一个类只能订阅一次
+                //  已经订阅过的eventType不能再订阅
                 throw new EventBusException("Subscriber " + subscriber.getClass() + " already registered to event "
                         + eventType);
             }
@@ -197,7 +198,7 @@ public class EventBus {
         }
         subscribedEvents.add(eventType);
 
-        //  sticky 置顶 当订阅类型为sticky时 直接进行post操作
+        // 当订阅类型为sticky时 直接进行post操作
         if (subscriberMethod.sticky) {
             if (eventInheritance) {
                 // Existing sticky events of all subclasses of eventType have to be considered.
@@ -296,7 +297,7 @@ public class EventBus {
                     postSingleEvent(eventQueue.remove(0), postingState);
                 }
             } finally {
-                //  开封
+                //  重新初始化
                 postingState.isPosting = false;
                 postingState.isMainThread = false;
             }
